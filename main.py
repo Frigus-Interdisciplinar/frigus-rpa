@@ -6,27 +6,28 @@
 
 Tabelas, campos e regras: docs/tabelas.md. Visão geral: README.md.
 """
-import logging
 import sys
 import time
 
 from dishka import Container
 from dotenv import load_dotenv
+from loguru import logger
 from psycopg2 import InterfaceError, OperationalError
-from tenacity import before_sleep_log, retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+from tenacity import RetryCallState, retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from app.config import Settings
 from app.container import criar_container
 from app.sync.ciclo import Ciclo
 
-log = logging.getLogger("rpa")
+def avisa_nova_tentativa(estado: RetryCallState) -> None:
+    logger.warning("banco indisponível, tentativa {} falhou; tentando de novo", estado.attempt_number)
 
 
 @retry(
     retry=retry_if_exception_type((OperationalError, InterfaceError)),
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=5, max=60),
-    before_sleep=before_sleep_log(log, logging.WARNING),
+    before_sleep=avisa_nova_tentativa,
     reraise=True,
 )
 def rodar_ciclo(container: Container, dry_run: bool) -> None:
@@ -37,7 +38,6 @@ def rodar_ciclo(container: Container, dry_run: bool) -> None:
 
 def main() -> None:
     load_dotenv()
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
     dry_run = "--dry-run" in sys.argv
     uma_vez = dry_run or "--once" in sys.argv
@@ -52,7 +52,7 @@ def main() -> None:
             except Exception:
                 if uma_vez:
                     raise
-                log.exception("ciclo falhou, tenta de novo em %ss", settings.intervalo_segundos)  # não derruba o loop
+                logger.exception("ciclo falhou, tenta de novo em {}s", settings.intervalo_segundos)  # não derruba o loop
 
             if uma_vez:
                 break

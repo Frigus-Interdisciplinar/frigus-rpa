@@ -1,7 +1,7 @@
 """Passos da sincronização, na ordem em que rodam. Cada um lê da origem e grava no destino."""
-import logging
 from typing import NamedTuple
 
+from loguru import logger
 from psycopg2.extensions import cursor as Cursor
 from psycopg2.extras import execute_batch
 
@@ -9,8 +9,6 @@ from app import mapeamentos
 from app.mapeamentos.tipos import PapelMembro, PapelUsuario, StatusItemLista, StatusLista, Tabela
 from app.queries import destino as qd
 from app.queries import origem as qo
-
-log = logging.getLogger("rpa")
 
 Id = int | str  # users, groups e shopping_lists usam uuid (str); o resto, inteiro
 NOME_LISTA = "Lista de compras"
@@ -169,7 +167,7 @@ def migrar_listas(
 
     for r in ler(ori, qo.listas()):
         if r["documento"] not in principal:
-            log.warning("lista %s ignorada, dono sem estoque", r["id"])
+            logger.warning("lista {} ignorada, dono sem estoque", r["id"])
             continue
 
         chave = {"stock_id": principal[r["documento"]], "date": r["data"], "name": NOME_LISTA}
