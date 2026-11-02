@@ -44,3 +44,16 @@ class Ciclo:
 
         novos = {t.value: depois[t] - antes[t] for t in Tabela if depois[t] != antes[t]}
         log.info("%s: %s", "dry-run (rollback)" if dry_run else "commit", novos or "nada novo")
+
+        if not dry_run:
+            self.carregar_dw()
+
+    def carregar_dw(self) -> None:
+        """Transação própria, depois do commit: falha no DW não desfaz a migração (o próximo ciclo recarrega)."""
+        try:
+            self.dst.execute(qd.carregar_dw())
+            self.conexao_destino.commit()
+            log.info("dw recarregado")
+        except Exception:
+            self.conexao_destino.rollback()
+            log.exception("dw não recarregou; migração já gravada")

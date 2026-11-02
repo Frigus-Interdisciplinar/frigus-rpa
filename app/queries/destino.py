@@ -125,3 +125,8 @@ def inserir_assinatura() -> str:
 
 def contar(tabela: str) -> str:
     return Query.from_(Table(tabela)).select(Count("*")).get_sql()
+
+
+def carregar_dw() -> str:
+    """Recarrega o schema dw (dimensões + fato). A função faz TRUNCATE na fato."""
+    return "SELECT dw.sp_load_all()"
